@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>キメションアシスト</title>
+    <style>
+        body { padding-left: 20px;}
+        textarea { font-size: 18px; }
+        select, button { height:3em; }
+        button { width: 200px; }
+        br { display: block; content: ""; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <p>キメションアシスト ver.240909</p>
+    声：<select id="actor">
+        <option value="0">SHOW</option>
+        <option value="1">MISAKI</option>
+        <option value="2">SAYAKA</option>
+        <option value="3">HIKARI</option>
+        <option value="4">HARUKA</option>
+        <option value="5">RYO</option>
+        <option value="6">TAKERU</option>
+        <option value="7">KYOKO</option>
+        <option value="8">KAITO</option>
+        <option value="9">HIMARI</option>
+        <option value="10">TARO-KUN</option>
+        <option value="11">YUKI-CHAN</option>
+    </select>　
+    <select id="effect">
+        <option value="0">高さ</option>
+        <option value="1">高さと速さ</option>
+        <option value="2">速さ</option>
+        <option value="3">ディレイ</option>
+        <option value="4">リバーブ</option>
+        <option value="6">フェイザー</option>
+        <option value="7">電話音質</option>
+        <option value="8">ささやき</option>
+    </select>：
+    <input type="range" id="slider" min="-3" max="3" step="1" value="0" list="data1">
+        <span id="slidernum">0</span>
+    <input type="hidden" id="cbox">
+        <span id="cboxon"></span>
+    <datalist id="data1">
+        <option value="-3">
+        <option value="-2">
+        <option value="-1">
+        <option value="0">
+        <option value="1">
+        <option value="2">
+        <option value="3">
+    </datalist>
+    <br>
+    <textarea id="field" rows="12" cols="60"></textarea>
+    <div id="moji">文字数: 0/230</div>
+    <br>
+    <button id="btn1" disabled>生成</button>　<button id="btn2" disabled>DL</button>
+    　<button id="btn3">test</button>
+    <br>
+    <div id="track1">1. </div>
+    <br>
+    <audio id="music" controls autoplay></audio>
+    <br>
+    <div id="info">　</div>
+    <br>
+    <div id="url"></div>
+    <br>
+    <div id="info2">　</div>
+
+    <script>
+        const actor = document.getElementById("actor");
+        const effect = document.getElementById("effect");
+        const slider = document.getElementById("slider");
+        const slidernum = document.getElementById("slidernum");
+        const cbox = document.getElementById("cbox");
+        const cboxon = document.getElementById("cboxon");
+        const field = document.getElementById("field");
+        const moji = document.getElementById("moji");
+        const btn1 = document.getElementById("btn1");
+        const btn2 = document.getElementById("btn2");
+        const btn3 = document.getElementById("btn3");
+        const music = document.getElementById("music");
+        const track1 = document.getElementById("track1");
+        const info = document.getElementById("info");
+        const info2 = document.getElementById("info2");
+        const url = document.getElementById("url");
+        music.volume = 0.5;
+        let blob = new Blob([],{type:"audio/mpeg"});
+        let effectparameter = "";
+        let timeoutid;
+        const act = ["3&LID=12&VID=2","3&LID=12&VID=3","3&LID=12&VID=4","3&LID=12&VID=5","3&LID=12&VID=6","3&LID=12&VID=7","3&LID=12&VID=8","4&LID=12&VID=1","7&LID=12&VID=2","7&LID=12&VID=1","8&LID=12&VID=2","8&LID=12&VID=1"];
+
+        actor.onchange = () => {
+            fieldcheck();
+        }
+        effect.onchange = () => {
+            if(effect.value < 3){ // スライダー
+                slider.type = "range";
+                slider.list = "data1";
+                slider.min = "-3";
+                slider.value = "0";
+                slidernum.innerText = "0";
+                cbox.type = "hidden";
+                cboxon.innerText = "";
+                if(slider.value == 0){
+                    effectparameter = "";
+                }
+            } else { // チェックボックス
+                slider.type = "hidden";
+                slidernum.innerText = "";
+                cbox.type = "checkbox";
+                cbox.checked = true;
+                cboxon.innerText = "ON";
+            }
+            effectparameterfunc();
+            fieldcheck();
+        }
+        slider.oninput = () => {
+            slidernum.innerText = slider.value;
+            effectparameterfunc();
+            if(slider.value == 0){
+                effectparameter = "";
+            }
+            fieldcheck();
+        }
+        cbox.onchange = () => {
+            if(cbox.checked) {
+                effectparameterfunc();
+            } else {
+                effectparameter = "";
+            }
+            fieldcheck();
+        }
+        field.oninput = () => {
+            moji.innerText = "文字数: "+field.value.length+"/230";
+            if (field.value.length > 230) {
+                moji.style.color = "red"
+            } else {
+                moji.style.removeProperty("color");
+            }
+            fieldcheck();
+        }
+        btn1.onclick = async() => {
+            btn1.disabled = true;
+            info.innerText = "Now Loading..."
+            track1.innerText = "";
+            music.src = "";
+            timeoutid = setTimeout(timeout,10000);
+            let f = await fetch("https://cache-a.oddcast.com/tts/genC.php?EID="+act[actor.value]+"&TXT="+field.value+effectparameter);
+            if(f.ok){
+                blob = await f.blob();
+                track1.innerText = "1. "+actor.options[actor.value].innerText+"： "+field.value.substring(0, 30);
+                music.src = URL.createObjectURL(blob);
+            } else {
+                info.innerText = "接続失敗しました";
+            }
+            clearTimeout(timeoutid);
+        }
+        btn2.onclick = async() => {
+            try {
+                if (navigator.userActivation.isActive) {
+                    let filename = actor.options[actor.value].innerText+"： "+field.value.substring(0, 30)+".mp3";
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: filename, types: [{ accept: {'audio/mpeg': ['.mp3']}}], 
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    info.innerHTML = "保存完了　"+filename;
+                } else {
+                    throw new Error("ブラウザが古く対応していません");
+                }
+            } catch (error) {
+                info.innerText = "保存失敗しました";
+            }
+		}
+        field.onmouseout = () => {
+            
+        }
+
+        timeout = () => {
+            if(music.readyState == 0) {
+                info.innerText = "10秒経過しました。接続失敗した可能性があります";
+                btn1.disabled = false;
+            }
+        }
+        effectparameterfunc = () => {
+            switch (effect.value) {
+                case "0":
+                    effectparameter = "&FX_TYPE=P&FX_LEVEL="+slider.value;
+                    break;
+                case "1":
+                    effectparameter = "&FX_TYPE=S&FX_LEVEL="+slider.value;
+                    break;
+                case "2":
+                    effectparameter = "&FX_TYPE=D&FX_LEVEL="+-slider.value;
+                    break;
+                case "3":
+                    effectparameter = "&FX_TYPE=T&FX_LEVEL=1";
+                    break;
+                case "4":
+                    effectparameter = "&FX_TYPE=T&FX_LEVEL=2";
+                    break;
+                case "6":
+                    effectparameter = "&FX_TYPE=T&FX_LEVEL=4";
+                    break;
+                case "7":
+                    effectparameter = "&FX_TYPE=R&FX_LEVEL=3";
+                    break;
+                case "8":
+                    effectparameter = "&FX_TYPE=W&FX_LEVEL=3";
+                    break;
+            }
+        }
+        fieldcheck = () => {
+            if (field.value === "" || !field.value.match(/\S/g)) {
+                btn1.disabled = true;
+            } else {
+                btn1.disabled = false;
+            }
+            //url.innerText = "https://cache-a.oddcast.com/tts/genC.php?EID="+act[actor.value]+"&TXT="+field.value+effectparameter;
+        }
+    </script>
+</body>
+</html>
